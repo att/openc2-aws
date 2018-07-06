@@ -2,9 +2,9 @@
     "action": "deny", 
     "actuator": { 
         "type": "network-router", 
-        "aws_account" : "370852300529", 
+        "aws_account" : "123456789000",
         "aws_region" : "eu-west-3", 
-        "aws_sgid": "sg-21254148" 
+        "aws_sgid": "<security group ID>"
     }, 
     "target": { 
         "type": "network-traffic", 
