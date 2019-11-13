@@ -34,56 +34,48 @@ from flask import Flask,json,request,jsonify
 
 import boto3
 
+from nacl_ap import AWSNACL
+from openc2 import parse, Response
+
 app = Flask(__name__)
 
 @app.route('/')
 def index():
-	return "Hello, World!\n"
+    return "Hello, World!\n"
 
 @app.route('/aws/networkacl', methods = ['POST'])
 def openc2_aws_sg():
-	
-	if request.headers['Content-Type'] == 'application/json':
-		openc2_action = request.get_json()
-		account_id = openc2_action['actuator']['aws_account']
-		region = openc2_action['actuator']['aws_region']
-		action = openc2_action['action']
-		NetAclId = openc2_action['actuator']['aws_net_acl_id']
-		IpProto = openc2_action['target']['protocol']
-		FromPort = int(openc2_action['target']['dst_port'])
-		ToPort = int(openc2_action['target']['dst_port'])
-		CidrIp = openc2_action['target']['src_ip']
-		rulenm = int(openc2_action['modifiers']['rule_number'])
-		direction = openc2_action['modifiers']['direction']
-
-		if not IpProto.isdigit():
-			if IpProto.lower() == 'tcp':
-				IpProto='6'
-			elif IpProto.lower() == 'udp':
-				IpProto='17'
-			elif IpProto.lower() == 'icmp':
-				IpProto='1'
-
-	
-		if direction == 'inbound':
-			Egress=False
-		else:
-			Egress=True
-
-		session = boto3.Session(profile_name=account_id)
-
-		ec2 = session.client('ec2',region_name=region)
+    if request.headers['Content-Type'] == 'application/json':
+        cmd = parse(request.get_json())
+        try:
+            naclap = AWSNACL(**cmd)
+        except Exception as e:
+            resp = Response(status=400,
+            status_text="Invalid command format/arguments (%s)"%str(e))
+            return resp.serialize()
+        
+        session = boto3.Session(profile_name=naclap.actuator.aws_account_id)
+        ec2 = session.client('ec2',region_name=naclap.actuator.aws_region)
 		
-		try:
-			data = ec2.create_network_acl_entry(NetworkAclId=NetAclId, CidrBlock=CidrIp, Egress=Egress, PortRange={ 'From': FromPort, 'To': ToPort }, Protocol=IpProto, RuleAction=action, RuleNumber=rulenm )
-		except Exception as e:
-			errmsg = '{ "err_msg": "' + str(e) + '" }' 
-			return errmsg
-		else:
-			return json.dumps(data)
-
-	else:
-		return "425 Unsupported Media Type"
+        try:
+            data = ec2.create_network_acl_entry(NetworkAclId=naclap.actuator.aws_nacl_id, CidrBlock=naclap.target.src_addr, 
+                Egress=naclap.clean(naclap.args.slpf.direction, {'ingress':False,'egress':True}),
+                PortRange={ 'From': naclap.target.dst_port, 'To': naclap.target.dst_port}, 
+                Protocol=naclap.clean(naclap.target.protocol,{'tcp':6,'udp':17,'icmp':1}), 
+                RuleAction=naclap.action, RuleNumber=naclap.args.slpf.insert_rule )
+        except Exception as e:
+            #todo: parse boto3 for http code and resp
+            resp = Response(status=400,
+                    status_text=str(e))
+            return resp.serialize()
+        else:
+            resp = Response(status=200,
+                results = {"x-aws-nacl":data})
+        return resp.serialize()
+    else:
+        resp = Response(status=425,
+                        status_text="Unsupported Media Type")
+        return resp.serialize()
 
 if __name__ == '__main__':
-	app.run(debug=False)
+    app.run(debug=False)

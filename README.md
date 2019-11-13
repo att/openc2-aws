@@ -14,6 +14,7 @@ later in this document.
 
  * Flask 0.12
  * boto3 1.7.51
+ * openc2-lycan-python 1.0
  * Python 3.x
 
 &nbsp;
@@ -77,20 +78,22 @@ is tied to the credentials file under your ".aws" subdirectory.
 {
   "action": "allow",
   "actuator": {
-    "type": "network-router",
-    "aws_account": "123456789000",
-    "aws_region": "eu-west-3",
-    "aws_net_acl_id": "<NACL ID>"
+    "x-aws-nacl": {
+        "aws_account" : "123456789000",
+        "aws_region" : "eu-west-3",
+        "aws_nacl_id": "nacl ID"
+    }
   },
-  "modifiers": {
-    "rule_number": "10",
-    "direction": "inbound"
+  "args": {
+    "x-aws-nacl:rule_number": "10",
+    "x-aws-nacl:direction": "inbound"
   },
   "target": {
-    "type": "network-traffic",
-    "src_ip": "135.0.0.0/24",
-    "dst_port": "8888",
-    "protocol": "tcp"
+    "ipv4_connection": {
+        "src_addr": "135.0.0.0/24",
+        "dst_port": "8888",
+        "protocol": "tcp"
+    }
   }
 }
 ```
