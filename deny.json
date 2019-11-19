@@ -1,15 +1,17 @@
 { 
     "action": "deny", 
-    "actuator": { 
-        "type": "network-router", 
-        "aws_account" : "123456789000",
-        "aws_region" : "eu-west-3", 
-        "aws_sgid": "<security group ID>"
+    "actuator": {
+        "x-aws-resource": {
+            "aws_account" : "123456789000",
+            "aws_region" : "eu-west-3",
+            "aws_resource_id": "security group ID"
+        }
     }, 
-    "target": { 
-        "type": "network-traffic", 
-        "src_ip": "135.0.0.0/24", 
-        "dst_port": "8888", 
-        "protocol": "tcp" 
+    "target": {
+        "ipv4_connection": {
+            "src_addr": "135.0.0.0/24",
+            "dst_port": "8888",
+            "protocol": "tcp"
+        }
     } 
 }

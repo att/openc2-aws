@@ -34,53 +34,59 @@ from flask import Flask,json,request,jsonify
 
 import boto3
 
+from sg_ap import AWSSecurityGroup
+from openc2 import parse, Response
+
 app = Flask(__name__)
 
 @app.route('/')
 def index():
-	return "Hello, World!\n"
+    return "Hello, World!\n"
 
 @app.route('/aws/securitygroup', methods = ['POST'])
 def openc2_aws_sg():
-	
-	if request.headers['Content-Type'] == 'application/json':
-		openc2_action = request.get_json()
-		account_id = openc2_action['actuator']['aws_account']
-		region = openc2_action['actuator']['aws_region']
-		sg_id = openc2_action['actuator']['aws_sgid']
-		IpProto = openc2_action['target']['protocol']
-		FromPort = int(openc2_action['target']['dst_port'])
-		ToPort = int(openc2_action['target']['dst_port'])
-		CidrIp = openc2_action['target']['src_ip']
+    if request.headers['Content-Type'] == 'application/json':
+        cmd = parse(request.get_json())
+        try:
+            sgap = AWSSecurityGroup(**cmd)
+        except Exception as e:
+            resp = Response(status=400,
+                status_text="Invalid command format/arguments (%s)"%str(e))
+            return resp.serialize()
 
-		session = boto3.Session(profile_name=account_id)
-
-		ec2 = session.client('ec2',region_name=region)
+        session = boto3.Session(profile_name=sgap.actuator.aws_account_id)
+        ec2 = session.client('ec2',region_name=sgap.actuator.aws_region)
 		
-		if openc2_action['action'] == 'allow':
-			try:
-				data = ec2.authorize_security_group_ingress( GroupId=sg_id, IpProtocol=IpProto, FromPort=FromPort, ToPort=ToPort, CidrIp=CidrIp )
-			except Exception as e:
-				errmsg = '{ "err_msg": "' + str(e) + '" }' 
-				return errmsg
-			else:
-				return json.dumps(data)
-
-		elif openc2_action['action'] == 'deny':
-			try:
-				data = ec2.revoke_security_group_ingress( GroupId=sg_id, IpProtocol=IpProto, FromPort=FromPort, ToPort=ToPort, CidrIp=CidrIp )
-			except Exception as e:
-				errmsg = '{ "err_msg": "' + str(e) + '" }'	
-				return errmsg
-			else:
-				return json.dumps(data)
-
-		else:
-			return "No action specified"
-			
-
-	else:
-		return "425 Unsupported Media Type"
+        if sgap.action == "allow":
+            try:
+                data = ec2.authorize_security_group_ingress( GroupId=sgap.actuator.aws_resource_id, IpProtocol=sgap.target.protocol, 
+                            FromPort=sg.target.dst_port, ToPort=sg.target.dst_port, CidrIp=sg.target.src_addr)
+            except Exception as e:
+                #todo: parse boto3 for http code and resp
+                resp = Response(status=400,
+                                status_text=str(e))
+                return resp.serialize()
+            else:
+                resp = Response(status=200,
+                                results = {"x-aws-sg":data})
+                return resp.serialize()
+        elif sgap.action == "deny":
+            try:
+                data = ec2.revoke_security_group_ingress( GroupId=sgap.actuator.aws_sg_id, IpProtocol=sgap.target.protocol, 
+                        FromPort=sgap.target.dst_port, ToPort=sgap.target.dst_port, CidrIp=sgap.target.src_addr )
+            except Exception as e:
+                #todo: parse boto3 for http code and resp
+                resp = Response(status=400,
+                                status_text=str(e))
+                return resp.serialize()
+            else:
+                resp = Response(status=200,
+                                results = {"x-aws-sg":data})
+                return resp.serialize()
+    else:
+        resp = Response(status=425,
+                        status_text="Unsupported Media Type")
+        return resp.serialize()
 
 if __name__ == '__main__':
-	app.run(debug=False)
+    app.run(debug=False)
