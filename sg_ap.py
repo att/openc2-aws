@@ -30,7 +30,7 @@
 
 from stix2 import properties
 from openc2.properties import TargetProperty, ActuatorProperty, ArgsProperty
-from openc2.base import _OpenC2Base, _Actuator, _Target
+from openc2.base import _Target
 from openc2 import Command
 from nacl_ap import AWSResourceActuator
 from collections import OrderedDict
@@ -40,8 +40,8 @@ class AWSSecurityGroup(Command):
     _properties = OrderedDict([
         ('action', properties.EnumProperty(
             allowed=[
-                "deny",
                 "allow",
+                "delete"
             ], required=True
         )),
         ('target', TargetProperty(required=True)),
