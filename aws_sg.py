@@ -70,7 +70,7 @@ def openc2_aws_sg():
                 resp = Response(status=200,
                                 results = {"x-aws-sg":data})
                 return resp.serialize()
-        elif sgap.action == "deny":
+        elif sgap.action == "delete":
             try:
                 data = ec2.revoke_security_group_ingress( GroupId=sgap.actuator.aws_sg_id, IpProtocol=sgap.target.protocol, 
                         FromPort=sgap.target.dst_port, ToPort=sgap.target.dst_port, CidrIp=sgap.target.src_addr )

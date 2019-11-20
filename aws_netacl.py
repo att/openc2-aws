@@ -58,11 +58,16 @@ def openc2_aws_sg():
         ec2 = session.client('ec2',region_name=naclap.actuator.aws_region)
 		
         try:
-            data = ec2.create_network_acl_entry(NetworkAclId=naclap.actuator.aws_nacl_id, CidrBlock=naclap.target.src_addr, 
-                Egress=naclap.clean(naclap.args.slpf.direction, {'ingress':False,'egress':True}),
-                PortRange={ 'From': naclap.target.dst_port, 'To': naclap.target.dst_port}, 
-                Protocol=naclap.clean(naclap.target.protocol,{'tcp':6,'udp':17,'icmp':1}), 
-                RuleAction=naclap.action, RuleNumber=naclap.args.slpf.insert_rule )
+            if naclap.action == 'delete':
+                data = ec2.delete_network_acl_entry(NetworkAclId=naclap.actuator.aws_nacl_id, RuleNumber=naclap.target.splf.rule_id,
+                    Egress=naclap.clean(naclap.args.slpf.direction, {'ingress':False,'egress':True}),
+                    RuleNumber=naclap.target.slpf.rule_number)
+            else:
+                data = ec2.create_network_acl_entry(NetworkAclId=naclap.actuator.aws_nacl_id, CidrBlock=naclap.target.src_addr,
+                    Egress=naclap.clean(naclap.args.slpf.direction, {'ingress':False,'egress':True}),
+                    PortRange={ 'From': naclap.target.dst_port, 'To': naclap.target.dst_port},
+                    Protocol=naclap.clean(naclap.target.protocol,{'tcp':6,'udp':17,'icmp':1}),
+                    RuleAction=naclap.action, RuleNumber=naclap.args.slpf.insert_rule )
         except Exception as e:
             #todo: parse boto3 for http code and resp
             resp = Response(status=400,
